@@ -1,0 +1,6 @@
+INFO 2021-11-25 16:36:36 - test_matmul_001.py:setup:30 - ============= test_akg_matmul_001 Setup case============
+INFO 2021-11-25 16:36:36 - base.py:common_run:232 - common_run :: run matmul_run with args:[(8192, 4096), (4096, 1024), 0, 'zN', 'zN', 'zN', False, False, 'float16', None, 'float16', 'matmul_cce']
+INFO 2021-11-25 16:37:27 - test_matmul_001.py:setup:30 - ============= test_akg_matmul_001 Setup case============
+INFO 2021-11-25 16:37:27 - base.py:common_run:232 - common_run :: run matmul_run with args:[(16, 1024), (1024, 1024), 0, 'zN', 'zN', 'zN', False, True, 'float16', None, 'float32', 'matmul_cce']
+INFO 2021-11-25 16:38:12 - test_matmul_001.py:setup:30 - ============= test_akg_matmul_001 Setup case============
+INFO 2021-11-25 16:38:12 - base.py:common_run:232 - common_run :: run matmul_run with args:[(16, 1024), (16, 1024), 0, 'zZ', 'nZ', 'zN', False, True, 'float16', None, 'float16', 'matmul_cce']

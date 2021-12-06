@@ -1,0 +1,6 @@
+INFO 2021-11-25 16:30:44 - base.py:setup:47 - TestBase:test_abs_001 Setup case
+INFO 2021-11-25 16:30:44 - test_abs_001.py:setup:56 - TestCase:test_abs_001 Setup case
+INFO 2021-11-25 16:30:44 - base.py:run_test_arg_func:64 - ('000_abs_input_1_1', <function abs_run at 0xfffee010f3b0>, ((1, 1), 'float16'), ['level0'])
+INFO 2021-11-25 16:30:44 - base.py:common_run:235 - common_run :: run abs_run with args:[(1, 1), 'float16']
+INFO 2021-11-25 16:31:28 - test_abs_001.py:teardown:77 - test_abs_001 Teardown
+INFO 2021-11-25 16:31:28 - base.py:teardown:51 - TestBase:test_abs_001 Teardown
