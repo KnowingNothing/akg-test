@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import akg
 from datetime import datetime
 import logging
 from enum import Enum
@@ -332,15 +333,24 @@ def matmul_execute(shape_x, shape_y, bias, left_format, right_format, out_format
     # mod launch
     output = np.full(out_shape, np.nan, out_dtype)
     if bias == 0:
-        output = utils.mod_launch(mod, (m_x, m_y, output), expect=bench_mark, device_id=2)
+        # output = utils.mod_launch(mod, (m_x, m_y, output), expect=bench_mark, device_id=2)
+        ctx = akg.tvm.context("cce", 0)
+        t_mx = akg.tvm.nd.array(m_x, ctx)
+        t_my = akg.tvm.nd.array(m_y, ctx)
+        t_output = akg.tvm.nd.array(output, ctx)
+        evaluator = mod.time_evaluator(
+            mod.entry_name, ctx, repeat=100, number=1
+        )
+        cost = evaluator(t_mx, t_my, t_output).mean
+        print("Cost is", cost, "ms")
     elif bias == 1:
         output = utils.mod_launch(mod, (m_x, m_y, bias_data, output), expect=bench_mark)
 
-    # compare result
-    rtol, atol = get_rtol_atol("matmul", dtype)
-    compare_result = compare_tensor(output, bench_mark, rtol=rtol, atol=atol, equal_nan=True)
-    # compare_result = utils.result_compare(output, bench_mark, r_tol=5e-3)
-    return (m_x, m_y), output, bench_mark, compare_result
+    # # compare result
+    # rtol, atol = get_rtol_atol("matmul", dtype)
+    # compare_result = compare_tensor(output, bench_mark, rtol=rtol, atol=atol, equal_nan=True)
+    # # compare_result = utils.result_compare(output, bench_mark, r_tol=5e-3)
+    # return (m_x, m_y), output, bench_mark, compare_result
 
 
 def matmul_compile(shape_x, shape_y, bias, left_format, right_format, output_format, adj_x, adj_y, dtype, bias_dtype, out_dtype, kernel_name, attrs, tuning=False):
@@ -364,25 +374,25 @@ def matmul_compile(shape_x, shape_y, bias, left_format, right_format, output_for
 
 shapes = [
         [128, 128, 128],
-        [256, 256, 256],
-        [512, 512, 512],
-        [1024, 1024, 1024],
-        [2048, 2048, 2048],
-        [128, 1024, 2048],
-        [2048,32, 128],
-        [1024, 256, 32],
-        [512, 64, 16],
-        [32, 1024, 32],
-        [1760, 128, 1760],
-        [7860, 64, 2560],
-        [2560, 64, 2560],
-        [5124, 9136, 2560],
-        [3072, 128, 1024],
-        [50176, 64, 192],
-        [12544, 128, 576],
-        [3136, 256, 1152],
-        [784, 512, 2304],
-        [196, 1024, 4608] 
+        # [256, 256, 256],
+        # [512, 512, 512],
+        # [1024, 1024, 1024],
+        # [2048, 2048, 2048],
+        # [128, 1024, 2048],
+        # [2048,32, 128],
+        # [1024, 256, 32],
+        # [512, 64, 16],
+        # [32, 1024, 32],
+        # [1760, 128, 1760],
+        # [7860, 64, 2560],
+        # [2560, 64, 2560],
+        # [5124, 9136, 2560],
+        # [3072, 128, 1024],
+        # [50176, 64, 192],
+        # [12544, 128, 576],
+        # [3136, 256, 1152],
+        # [784, 512, 2304],
+        # [196, 1024, 4608] 
     ]
 for M, N, K in shapes:
     print(M, N, K)
