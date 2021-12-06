@@ -334,15 +334,26 @@ def matmul_execute(shape_x, shape_y, bias, left_format, right_format, out_format
     output = np.full(out_shape, np.nan, out_dtype)
     if bias == 0:
         # output = utils.mod_launch(mod, (m_x, m_y, output), expect=bench_mark, device_id=2)
-        ctx = akg.tvm.context("cce", 0)
+        ctx = akg.tvm.context("cce", 6)
+        import time
         t_mx = akg.tvm.nd.array(m_x, ctx)
         t_my = akg.tvm.nd.array(m_y, ctx)
         t_output = akg.tvm.nd.array(output, ctx)
-        evaluator = mod.time_evaluator(
-            mod.entry_name, ctx, repeat=100, number=1
-        )
-        cost = evaluator(t_mx, t_my, t_output).mean
+        # warm up
+        mod(t_mx, t_my, t_output)
+        ctx.sync()
+        beg = time.time()
+        mod(t_mx, t_my, t_output)
+        ctx.sync()
+        end = time.time()
+        cost = (end - beg) * 1e3
+        return cost
         print("Cost is", cost, "ms")
+        # evaluator = mod.time_evaluator(
+        #    mod.entry_name, ctx, repeat=100, number=1
+        # )
+        # cost = evaluator(t_mx, t_my, t_output).mean
+        # print("Cost is", cost, "ms")
     elif bias == 1:
         output = utils.mod_launch(mod, (m_x, m_y, bias_data, output), expect=bench_mark)
 
@@ -373,10 +384,10 @@ def matmul_compile(shape_x, shape_y, bias, left_format, right_format, output_for
     return utils.op_build_test(matmul.matmul, input_shapes, input_types, op_attrs, kernel_name, attrs, tuning=tuning)
 
 shapes = [
-        [128, 128, 128],
+        # [128, 128, 128],
         # [256, 256, 256],
         # [512, 512, 512],
-        # [1024, 1024, 1024],
+        [1024, 1024, 1024],
         # [2048, 2048, 2048],
         # [128, 1024, 2048],
         # [2048,32, 128],
@@ -394,6 +405,9 @@ shapes = [
         # [784, 512, 2304],
         # [196, 1024, 4608] 
     ]
+fout = open("ieee_micro_results.csv", "w")
+print("M,N,K,cost(ms)", file=fout)
 for M, N, K in shapes:
-    print(M, N, K)
-    matmul_execute((M, K), (K, N), 0, "zZ", "nZ", "zN", False, False, "float16", "float16", "float16", "gemm", {})
+    cost = matmul_execute((M, K), (K, N), 0, "zZ", "nZ", "zN", False, False, "float16", "float16", "float16", "gemm", {})
+    print(f"{M},{N},{K},{cost}", file=fout)
+    print(f"{M},{N},{K},{cost}")
