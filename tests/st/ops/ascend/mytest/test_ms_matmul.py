@@ -308,7 +308,11 @@ def get_converted_shapes(m, n, k, batch_tuple, adj_x, adj_y, bias, left_format="
     return shape_xx, shape_yy, bias_shape_nc1hwc0, output_shape, k
 
 
-def matmul_execute(shape_x, shape_y, bias, left_format, right_format, out_format, adj_x, adj_y, dtype, bias_dtype, out_dtype, kernel_name, attrs):
+def matmul_execute(
+    shape_x, shape_y, bias,
+    left_format, right_format, out_format,
+    adj_x, adj_y, dtype, bias_dtype, out_dtype, kernel_name, attrs,
+    dev_id=0, repeat=100):
     '''
     There are four types of fractal format in Davinci core: zZ, zN, nZ, nN
     general matmul format
@@ -333,35 +337,42 @@ def matmul_execute(shape_x, shape_y, bias, left_format, right_format, out_format
     # mod launch
     output = np.full(out_shape, np.nan, out_dtype)
     if bias == 0:
-        # output = utils.mod_launch(mod, (m_x, m_y, output), expect=bench_mark, device_id=2)
-        ctx = akg.tvm.context("cce", 6)
+        ctx = akg.tvm.context("cce", dev_id)
         import time
         t_mx = akg.tvm.nd.array(m_x, ctx)
         t_my = akg.tvm.nd.array(m_y, ctx)
         t_output = akg.tvm.nd.array(output, ctx)
         # warm up
         mod(t_mx, t_my, t_output)
-        ctx.sync()
-        beg = time.time()
-        mod(t_mx, t_my, t_output)
-        ctx.sync()
-        end = time.time()
-        cost = (end - beg) * 1e3
-        return cost
-        print("Cost is", cost, "ms")
-        # evaluator = mod.time_evaluator(
-        #    mod.entry_name, ctx, repeat=100, number=1
-        # )
-        # cost = evaluator(t_mx, t_my, t_output).mean
-        # print("Cost is", cost, "ms")
+        costs = []
+        for i in range(repeat):
+            ctx.sync()
+            beg = time.time()
+            mod(t_mx, t_my, t_output)
+            ctx.sync()
+            end = time.time()
+            cost = (end - beg) * 1e3
+            costs.append(cost)
+        return np.mean(costs)
     elif bias == 1:
-        output = utils.mod_launch(mod, (m_x, m_y, bias_data, output), expect=bench_mark)
-
-    # # compare result
-    # rtol, atol = get_rtol_atol("matmul", dtype)
-    # compare_result = compare_tensor(output, bench_mark, rtol=rtol, atol=atol, equal_nan=True)
-    # # compare_result = utils.result_compare(output, bench_mark, r_tol=5e-3)
-    # return (m_x, m_y), output, bench_mark, compare_result
+        ctx = akg.tvm.context("cce", dev_id)
+        import time
+        t_mx = akg.tvm.nd.array(m_x, ctx)
+        t_my = akg.tvm.nd.array(m_y, ctx)
+        t_bias = akg.tvm.nd.array(bias_data)
+        t_output = akg.tvm.nd.array(output, ctx)
+        # warm up
+        mod(t_mx, t_my, t_bias, t_output)
+        costs = []
+        for i in range(repeat):
+            ctx.sync()
+            beg = time.time()
+            mod(t_mx, t_my, t_bias, t_output)
+            ctx.sync()
+            end = time.time()
+            cost = (end - beg) * 1e3
+            costs.append(cost)
+        return np.mean(costs)
 
 
 def matmul_compile(shape_x, shape_y, bias, left_format, right_format, output_format, adj_x, adj_y, dtype, bias_dtype, out_dtype, kernel_name, attrs, tuning=False):
@@ -383,31 +394,38 @@ def matmul_compile(shape_x, shape_y, bias, left_format, right_format, output_for
         op_attrs = [None, out_dtype, left_format, right_format, output_format, adj_x, adj_y, attrs]
     return utils.op_build_test(matmul.matmul, input_shapes, input_types, op_attrs, kernel_name, attrs, tuning=tuning)
 
+
 shapes = [
-        # [128, 128, 128],
-        # [256, 256, 256],
-        # [512, 512, 512],
+        [128, 128, 128],
+        [256, 256, 256],
+        [512, 512, 512],
         [1024, 1024, 1024],
-        # [2048, 2048, 2048],
-        # [128, 1024, 2048],
-        # [2048,32, 128],
-        # [1024, 256, 32],
-        # [512, 64, 16],
-        # [32, 1024, 32],
-        # [1760, 128, 1760],
-        # [7860, 64, 2560],
-        # [2560, 64, 2560],
-        # [5124, 9136, 2560],
-        # [3072, 128, 1024],
-        # [50176, 64, 192],
-        # [12544, 128, 576],
-        # [3136, 256, 1152],
-        # [784, 512, 2304],
-        # [196, 1024, 4608] 
+        [2048, 2048, 2048],
+        [128, 1024, 2048],
+        [2048,32, 128],
+        [1024, 256, 32],
+        [512, 64, 16],
+        [32, 1024, 32],
+        [1760, 128, 1760],
+        [7860, 64, 2560],
+        [2560, 64, 2560],
+        [5124, 9136, 2560],
+        [3072, 128, 1024],
+        [50176, 64, 192],
+        [12544, 128, 576],
+        [3136, 256, 1152],
+        [784, 512, 2304],
+        [196, 1024, 4608] 
     ]
+
+
 fout = open("ieee_micro_results.csv", "w")
 print("M,N,K,cost(ms)", file=fout)
 for M, N, K in shapes:
-    cost = matmul_execute((M, K), (K, N), 0, "zZ", "nZ", "zN", False, False, "float16", "float16", "float16", "gemm", {})
+    cost = matmul_execute(
+        (M, K), (K, N), 0,
+        "zZ", "nZ", "zN", False, False,
+        "float16", "float16", "float16", "gemm", {},
+        dev_id=6, repeat=100)
     print(f"{M},{N},{K},{cost}", file=fout)
     print(f"{M},{N},{K},{cost}")
