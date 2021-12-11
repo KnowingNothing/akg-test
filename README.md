@@ -20,6 +20,9 @@ bash build.sh -e ascend
 # To run the test
 Our test files are in /akg/tests/st/ops/ascend/mytest
 ```sh
+cd /akg/tests
+source test_env.sh
+cd /akg/tests/st/ops/ascend/mytest
 python3 test_ms_matmul.py
 ```
 The results are in the csv file.
