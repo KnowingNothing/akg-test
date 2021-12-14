@@ -490,6 +490,7 @@ fout = open("overfeat_results.csv", "w")
 print("M,N,K,cost(ms)", file=fout)
 for (batch, in_channel, height, width, out_channel,
      _, k_h, k_w, _, stride, padding, dilation, groups) in overfeat_shapes:
+    batch = 64
     R = (k_h - 1) * dilation + 1
     S = (k_w - 1) * dilation + 1
     P = (height + 2 * padding - R) // stride + 1
